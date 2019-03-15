@@ -7,12 +7,15 @@ extern crate serde_json;
 extern crate serde_derive;
 extern crate futures;
 
+use chrono::{DateTime, Utc};
 use hyper::rt::{Future, Stream};
 use hyper::{Body, Client, Request};
 use hyper_tls::HttpsConnector;
 use tokio::runtime::Runtime;
 
 use futures::future;
+
+pub mod humanize;
 
 #[derive(Deserialize)]
 struct Response {
@@ -21,7 +24,7 @@ struct Response {
 #[derive(Deserialize)]
 pub struct Task {
     pub description: String,
-    pub start: String,
+    pub start: DateTime<Utc>,
 }
 
 fn auth(login: &str, password: &str) -> String {

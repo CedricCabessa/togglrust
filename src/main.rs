@@ -1,12 +1,22 @@
 use std::env;
 use togglrust;
 
+use chrono;
+
 fn main() {
     if let Ok(api_key) = env::var("TOGGL_KEY") {
         let ret = togglrust::get_current_task(&api_key)
             .and_then(|res| {
                 match res {
-                    Some(task) => println!("{} {}", task.description, task.start),
+                    Some(task) => {
+                        let now = chrono::Utc::now();
+                        let duration = now - task.start;
+                        println!(
+                            "{}: {}",
+                            task.description,
+                            togglrust::humanize::duration(&duration)
+                        );
+                    }
                     None => println!("no running task"),
                 }
                 Ok(())
