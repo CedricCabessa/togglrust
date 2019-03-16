@@ -12,9 +12,10 @@ fn main() {
                         let now = chrono::Utc::now();
                         let duration = now - task.start;
                         println!(
-                            "{}: {}",
-                            task.description,
-                            togglrust::humanize::duration(&duration)
+                            "{}: {} ({})",
+                            task.name,
+                            togglrust::humanize::duration(&duration),
+                            task.project,
                         );
                     }
                     None => println!("no running task"),
