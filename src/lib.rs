@@ -45,22 +45,7 @@ pub fn get_current_task(api_key: &str) -> Result<Option<Task>, ()> {
         .map(|response| response.data)
         .map(|task| {
             task.map(|task| {
-                let project = task
-                    .pid
-                    .map(|pid| {
-                        rt.block_on(api::fetch_api_future(
-                            &api_key,
-                            &format!("projects/{}", pid),
-                        ))
-                        .map_err(|_| ())
-                        .and_then(|data| {
-                            let resp: Result<ResponseProj, _> = serde_json::from_str(data.as_str());
-                            resp.map_err(|_| ())
-                        })
-                        .map(|response| response.data.name)
-                    })
-                    .and_then(|r| r.ok())
-                    .map_or("".to_string(), |x| x);
+                let project = fetch_project_from_pid(api_key, task.pid);
                 Task {
                     num: 0,
                     name: task.description,
@@ -69,4 +54,22 @@ pub fn get_current_task(api_key: &str) -> Result<Option<Task>, ()> {
                 }
             })
         })
+}
+
+fn fetch_project_from_pid(api_key: &str, pid: Option<u32>) -> String {
+    let mut rt = Runtime::new().unwrap();
+    pid.map(|pid| {
+        rt.block_on(api::fetch_api_future(
+            &api_key,
+            &format!("projects/{}", pid),
+        ))
+        .map_err(|_| ())
+        .and_then(|data| {
+            let resp: Result<ResponseProj, _> = serde_json::from_str(data.as_str());
+            resp.map_err(|_| ())
+        })
+        .map(|response| response.data.name)
+    })
+    .and_then(|r| r.ok())
+    .map_or("".to_string(), |x| x)
 }
