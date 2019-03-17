@@ -27,6 +27,7 @@ struct TogglTask {
 }
 
 pub struct Task {
+    pub num: u32,
     pub name: String,
     pub project: String,
     pub start: DateTime<Utc>,
@@ -61,6 +62,7 @@ pub fn get_current_task(api_key: &str) -> Result<Option<Task>, ()> {
                     .and_then(|r| r.ok())
                     .map_or("".to_string(), |x| x);
                 Task {
+                    num: 0,
                     name: task.description,
                     start: task.start,
                     project,
