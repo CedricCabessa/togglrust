@@ -56,6 +56,43 @@ pub fn get_current_task(api_key: &str) -> Result<Option<Task>, ()> {
         })
 }
 
+pub fn get_task_list(api_key: &str) -> Result<Vec<Task>, ()> {
+    let mut rt = Runtime::new().unwrap();
+
+    rt.block_on(api::fetch_api_future(&api_key, "time_entries"))
+        .map_err(|_| ())
+        .and_then(|data| {
+            let resp: Result<Vec<TogglTask>, _> = serde_json::from_str(data.as_str());
+            resp.map_err(|_| ())
+        })
+        .map(|mut v| {
+            let mut res: Vec<Task> = Vec::new();
+            let mut num = 0;
+            v.reverse();
+            for t in v {
+                let project = fetch_project_from_pid(&api_key, t.pid);
+
+                if !res
+                    .iter()
+                    .any(|task| task.name == t.description && task.project == project)
+                {
+                    let task = Task {
+                        num,
+                        name: t.description,
+                        project,
+                        start: t.start,
+                    };
+                    res.push(task);
+                    num += 1;
+                    if num > 10 {
+                        break;
+                    }
+                }
+            }
+            res
+        })
+}
+
 fn fetch_project_from_pid(api_key: &str, pid: Option<u32>) -> String {
     let mut rt = Runtime::new().unwrap();
     pid.map(|pid| {
