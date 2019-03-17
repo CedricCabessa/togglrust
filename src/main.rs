@@ -22,50 +22,38 @@ togglrust stop
 }
 
 fn print_current_task(api_key: &str) -> Result<(), ()> {
-    togglrust::get_current_task(&api_key)
-        .map(|res| match res {
-            Some(task) => {
-                let now = chrono::Utc::now();
-                let duration = now - task.start;
-                println!(
-                    "{}: {} ({})",
-                    task.name,
-                    togglrust::humanize::duration(&duration),
-                    task.project,
-                );
-            }
-            None => println!("no running task"),
-        })
-        .map_err(|_| {
-            println!("something wrong happened");
-        })
+    let res = togglrust::get_current_task(&api_key)?;
+    match res {
+        Some(task) => {
+            let now = chrono::Utc::now();
+            let duration = now - task.start;
+            println!(
+                "{}: {} ({})",
+                task.name,
+                togglrust::humanize::duration(&duration),
+                task.project,
+            );
+        }
+        None => println!("no running task"),
+    };
+    Ok(())
 }
 
 fn list_tasks(api_key: &str) -> Result<(), ()> {
-    togglrust::get_task_list(&api_key)
-        .map(|v| {
-            for t in v {
-                println!("{} {} ({})", t.num, t.name, t.project);
-            }
-        })
-        .map_err(|_| {
-            println!("something wrong happened");
-        })
+    let tasks = togglrust::get_task_list(&api_key)?;
+    for t in tasks {
+        println!("{} {} ({})", t.num, t.name, t.project);
+    }
+    Ok(())
 }
 
 fn switch_task(api_key: &str, task_num: &str) -> Result<(), ()> {
     let idx: Result<usize, _> = task_num.parse();
     if let Ok(n) = idx {
-        togglrust::get_task_list(&api_key)
-            .map_err(|_| {
-                println!("something wrong happened");
-            })
-            .and_then(|v| {
-                let task = v.get(n).ok_or_else(|| println!("wrong index"));
-                task.map(|t| {
-                    println!("switching to task: {}", t.name);
-                })
-            })
+        let tasks = togglrust::get_task_list(&api_key)?;
+        let task = tasks.get(n).ok_or_else(|| println!("wrong index"))?;
+        println!("switching to task: {}", task.name);
+        Ok(())
     } else {
         println!("task must be a number");
         Err(())
@@ -114,6 +102,7 @@ fn main() {
             _ => help(),
         };
         if ret.is_err() {
+            eprintln!("something wrong happened");
             ::std::process::exit(1);
         }
     } else {
