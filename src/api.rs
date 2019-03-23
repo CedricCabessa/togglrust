@@ -17,9 +17,8 @@ pub fn fetch_api_future(api_key: &str, endpoint: &str) -> impl Future<Item = Str
     let https = HttpsConnector::new(4).unwrap();
     let client = Client::builder().build::<_, hyper::Body>(https);
 
-    let request =
-        Request::builder()
-        .uri(format!("https://www.toggl.com/api/v8/{}", endpoint))
+    let request = Request::builder()
+        .uri(format!("https://www.toggl.com/api/v9/me/{}", endpoint))
         .header("Authorization", auth(api_key, "api_token"))
         .body(Body::empty());
 

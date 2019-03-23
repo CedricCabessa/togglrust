@@ -7,23 +7,17 @@ use tokio::runtime::Runtime;
 pub mod api;
 pub mod humanize;
 
-#[derive(Deserialize)]
-struct Response {
-    data: Option<TogglTask>,
-}
-#[derive(Deserialize)]
-struct ResponseProj {
-    data: Project,
-}
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug)]
 struct Project {
+    id: u32,
     name: String,
 }
 #[derive(Deserialize)]
 struct TogglTask {
     description: String,
     start: DateTime<Utc>,
-    pid: Option<u32>,
+    stop: Option<DateTime<Utc>>,
+    project_id: Option<u32>,
 }
 
 pub struct Task {
@@ -36,31 +30,36 @@ pub struct Task {
 pub fn get_current_task(api_key: &str) -> Result<Option<Task>, ()> {
     let mut rt = Runtime::new().unwrap();
 
-    let data = rt.block_on(api::fetch_api_future(&api_key, "time_entries/current"))?;
-    let resp: Response = serde_json::from_str(data.as_str()).map_err(|_| ())?;
-    let task = resp.data;
-    let task = task.map(|task| {
-        let project = fetch_project_from_pid(api_key, task.pid);
-        Task {
-            num: 0,
-            name: task.description,
-            start: task.start,
-            project,
-        }
-    });
-    Ok(task)
+    let data = rt.block_on(api::fetch_api_future(&api_key, "time_entries"))?;
+    let resp: Vec<TogglTask> = serde_json::from_str(data.as_str()).map_err(|_| ())?;
+
+    resp.get(0).map_or_else(
+        || Ok(None),
+        |t| {
+            if t.stop.is_some() {
+                return Ok(None);
+            }
+            let project = fetch_project_from_pid(api_key, t.project_id);
+            let task = Task {
+                num: 0,
+                name: t.description.clone(),
+                start: t.start,
+                project,
+            };
+            Ok(Some(task))
+        },
+    )
 }
 
 pub fn get_task_list(api_key: &str) -> Result<Vec<Task>, ()> {
     let mut rt = Runtime::new().unwrap();
 
     let data = rt.block_on(api::fetch_api_future(&api_key, "time_entries"))?;
-    let mut tasks: Vec<TogglTask> = serde_json::from_str(data.as_str()).map_err(|_| ())?;
+    let tasks: Vec<TogglTask> = serde_json::from_str(data.as_str()).map_err(|_| ())?;
     let mut res: Vec<Task> = Vec::new();
     let mut num = 0;
-    tasks.reverse();
     for t in tasks {
-        let project = fetch_project_from_pid(&api_key, t.pid);
+        let project = fetch_project_from_pid(&api_key, t.project_id);
         if !res
             .iter()
             .any(|task| task.name == t.description && task.project == project)
@@ -84,16 +83,18 @@ pub fn get_task_list(api_key: &str) -> Result<Vec<Task>, ()> {
 fn fetch_project_from_pid(api_key: &str, pid: Option<u32>) -> String {
     let mut rt = Runtime::new().unwrap();
     pid.map(|pid| {
-        rt.block_on(api::fetch_api_future(
-            &api_key,
-            &format!("projects/{}", pid),
-        ))
-        .map_err(|_| ())
-        .and_then(|data| {
-            let resp: Result<ResponseProj, _> = serde_json::from_str(data.as_str());
-            resp.map_err(|_| ())
-        })
-        .map(|response| response.data.name)
+        rt.block_on(api::fetch_api_future(&api_key, "projects"))
+            .map_err(|_| ())
+            .and_then(|data| {
+                let resp: Result<Vec<Project>, _> = serde_json::from_str(data.as_str());
+                resp.map_err(|_| ())
+            })
+            .map(|responses| {
+                responses
+                    .iter()
+                    .find(|x| x.id == pid)
+                    .map_or("".to_string(), |p| p.name.clone())
+            })
     })
     .and_then(|r| r.ok())
     .map_or("".to_string(), |x| x)
