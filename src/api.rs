@@ -14,16 +14,17 @@ fn auth(login: &str, password: &str) -> String {
 }
 
 pub fn fetch_api_future(api_key: &str, endpoint: &str) -> impl Future<Item = String, Error = ()> {
-    let mut request = Request::builder();
-
     let https = HttpsConnector::new(4).unwrap();
     let client = Client::builder().build::<_, hyper::Body>(https);
 
-    request
+    let request =
+        Request::builder()
         .uri(format!("https://www.toggl.com/api/v8/{}", endpoint))
-        .header("Authorization", auth(api_key, "api_token"));
+        .header("Authorization", auth(api_key, "api_token"))
+        .body(Body::empty());
+
     client
-        .request(request.body(Body::empty()).unwrap())
+        .request(request.unwrap())
         .map_err(|_| ())
         .and_then(|res| {
             let f = if res.status().is_success() {
