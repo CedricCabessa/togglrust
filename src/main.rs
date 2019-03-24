@@ -39,33 +39,30 @@ fn print_current_task(toggl: &mut Toggl) -> Result<(), ()> {
     Ok(())
 }
 
-fn list_tasks(api_key: &str) -> Result<(), ()> {
-    let tasks = togglrust::get_task_list(&api_key)?;
+fn list_tasks(toggl: &mut Toggl) -> Result<(), ()> {
+    let tasks = toggl.list_tasks()?;
     for t in tasks {
         println!("{} {} ({})", t.num, t.name, t.project);
     }
     Ok(())
 }
 
-fn switch_task(api_key: &str, task_num: &str) -> Result<(), ()> {
+fn switch_task(toggl: &mut Toggl, task_num: &str) -> Result<(), ()> {
     let idx: Result<usize, _> = task_num.parse();
     if let Ok(n) = idx {
-        let tasks = togglrust::get_task_list(&api_key)?;
-        let task = tasks.get(n).ok_or_else(|| println!("wrong index"))?;
-        println!("switching to task: {}", task.name);
-        Ok(())
+        toggl.switch_task(n)
     } else {
         println!("task must be a number");
         Err(())
     }
 }
 
-fn stop_timer(api_key: &str) -> Result<(), ()> {
-    togglrust::stop_task(api_key)
+fn stop_timer(toggl: &mut Toggl) -> Result<(), ()> {
+    toggl.stop_task()
 }
 
-fn new_task(api_key: &str, desc: &str, proj: &str) -> Result<(), ()> {
-    togglrust::create_task(api_key, desc, proj)
+fn new_task(toggl: &mut Toggl, desc: &str, proj: &str) -> Result<(), ()> {
+    toggl.create_task(desc, proj)
 }
 
 fn main() {
@@ -77,8 +74,8 @@ fn main() {
             2 => {
                 let cmd = &args[1];
                 match &cmd[..] {
-                    "list" => list_tasks(&api_key),
-                    "stop" => stop_timer(&api_key),
+                    "list" => list_tasks(&mut toggl),
+                    "stop" => stop_timer(&mut toggl),
                     _ => help(),
                 }
             }
@@ -86,7 +83,7 @@ fn main() {
                 let cmd = &args[1];
                 let num = &args[2];
                 match &cmd[..] {
-                    "switch" => switch_task(&api_key, &num),
+                    "switch" => switch_task(&mut toggl, &num),
                     _ => help(),
                 }
             }
@@ -95,7 +92,7 @@ fn main() {
                 let desc = &args[2];
                 let proj = &args[3];
                 match &cmd[..] {
-                    "new" => new_task(&api_key, &desc, &proj),
+                    "new" => new_task(&mut toggl, &desc, &proj),
                     _ => help(),
                 }
             }
