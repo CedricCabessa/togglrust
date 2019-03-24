@@ -60,13 +60,12 @@ fn switch_task(api_key: &str, task_num: &str) -> Result<(), ()> {
     }
 }
 
-fn stop_timer(_api_key: &str) -> Result<(), ()> {
-    println!("stop task");
-    Ok(())
+fn stop_timer(api_key: &str) -> Result<(), ()> {
+    togglrust::stop_task(api_key)
 }
 
-fn new_task(_api_key: &str, _desc: &str, _proj: &str) -> Result<(), ()> {
-    Ok(())
+fn new_task(api_key: &str, desc: &str, proj: &str) -> Result<(), ()> {
+    togglrust::create_task(api_key, desc, proj)
 }
 
 fn main() {

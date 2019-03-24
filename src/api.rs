@@ -39,3 +39,47 @@ pub fn fetch_api_future(api_key: &str, endpoint: &str) -> impl Future<Item = Str
                 .to_owned()
         })
 }
+
+pub fn put_api_future(
+    api_key: &str,
+    endpoint: &str,
+    data: String,
+) -> impl Future<Item = (), Error = ()> {
+    send_api_future(api_key, endpoint, data, "PUT")
+}
+
+pub fn post_api_future(
+    api_key: &str,
+    endpoint: &str,
+    data: String,
+) -> impl Future<Item = (), Error = ()> {
+    send_api_future(api_key, endpoint, data, "POST")
+}
+
+fn send_api_future(
+    api_key: &str,
+    endpoint: &str,
+    data: String,
+    meth: &str,
+) -> impl Future<Item = (), Error = ()> {
+    let https = HttpsConnector::new(4).unwrap();
+    let client = Client::builder().build::<_, hyper::Body>(https);
+
+    let request = Request::builder()
+        .uri(format!("https://www.toggl.com/api/v9/{}", endpoint))
+        .header("Authorization", auth(api_key, "api_token"))
+        .header("content-type", "application/json")
+        .method(meth)
+        .body(Body::from(data));
+
+    client
+        .request(request.unwrap())
+        .map_err(|_| ())
+        .and_then(|res| {
+            if res.status().is_success() {
+                future::ok(())
+            } else {
+                future::err(())
+            }
+        })
+}
