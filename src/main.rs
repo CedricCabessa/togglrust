@@ -1,5 +1,5 @@
 use std::env;
-use togglrust;
+use togglrust::Toggl;
 
 use chrono;
 
@@ -21,8 +21,8 @@ togglrust stop
     Ok(())
 }
 
-fn print_current_task(api_key: &str) -> Result<(), ()> {
-    let res = togglrust::get_current_task(&api_key)?;
+fn print_current_task(toggl: &mut Toggl) -> Result<(), ()> {
+    let res = toggl.current_task()?;
     match res {
         Some(task) => {
             let now = chrono::Utc::now();
@@ -71,8 +71,9 @@ fn new_task(api_key: &str, desc: &str, proj: &str) -> Result<(), ()> {
 fn main() {
     if let Ok(api_key) = env::var("TOGGL_KEY") {
         let args: Vec<String> = env::args().collect();
+        let mut toggl = Toggl::new(&api_key);
         let ret = match args.len() {
-            1 => print_current_task(&api_key),
+            1 => print_current_task(&mut toggl),
             2 => {
                 let cmd = &args[1];
                 match &cmd[..] {
