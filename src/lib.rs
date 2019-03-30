@@ -122,7 +122,8 @@ impl Toggl {
 
         let toggltask = self.toggl_tasks.as_ref().and_then(|tasks| tasks.get(0));
         if let Some(task) = toggltask {
-            self.stop_task_by_id(task.id)?;
+            let duration = Utc::now().timestamp() - task.start.timestamp();
+            self.stop_task_by_id(task.id, duration)?;
         }
         Ok(())
     }
@@ -140,26 +141,19 @@ impl Toggl {
             .projects
             .as_ref()
             .and_then(|projects| projects.iter().find(|x| x.name == project))
-            .map(|project| project.id);
+            .map(|project| project.id.to_string())
+            .unwrap_or("null".to_string());
 
-        pid.map_or_else(
-            || {
-                println!("unknown project");
-                Err(())
-            },
-            |pid| {
-                let now = Utc::now().format("%Y-%m-%dT%H:%M:%S.000Z");
-                let payload = format!(
-                    r#"{{"start":"{}", "at": "{}", "wid": {}, "pid": {}, "description":"{}", "created_with": "togglrust"}}"#,
-                    now, now, wid, pid, description
-                );
-                rt.block_on(api::post_api_future(
-                    &self.api_key,
-                    &"time_entries".to_string(),
-                    payload
-                ))
-            }
-        )
+        let now = Utc::now();
+        let payload = format!(
+            r#"{{"start":"{}", "wid": {}, "pid": {}, "description":"{}", "duration": {}, "created_with": "togglrust"}}"#,
+            now.format("%Y-%m-%dT%H:%M:%S.000Z"), wid, pid, description, -1 * now.timestamp()
+        );
+        rt.block_on(api::post_api_future(
+            &self.api_key,
+            &"time_entries".to_string(),
+            payload
+        ))
     }
 
     pub fn switch_task(&mut self, idx: usize) -> Result<(), ()> {
@@ -167,7 +161,8 @@ impl Toggl {
         let current = tasks.get(0);
         let task = tasks.get(idx);
         if let Some(task) = current {
-            self.stop_task_by_id(task.id)?;
+            let duration = Utc::now().timestamp() - task.start.timestamp();
+            self.stop_task_by_id(task.id, duration)?;
         }
         if let Some(task) = task {
             self.create_task(&task.name, &task.project)?;
@@ -220,12 +215,13 @@ impl Toggl {
         resp.get(0).map_or_else(|| Err(()), |w| Ok(w.id))
     }
 
-    fn stop_task_by_id(&self, id: u32) -> Result<(), ()> {
+    fn stop_task_by_id(&self, id: u32, duration: i64) -> Result<(), ()> {
         let mut rt = Runtime::new().unwrap();
 
         let payload = format!(
-            r#"{{"stop":"{}"}}"#,
-            Utc::now().format("%Y-%m-%dT%H:%M:%S.000Z")
+            r#"{{"stop":"{}", "duration":{}}}"#,
+            Utc::now().format("%Y-%m-%dT%H:%M:%S.000Z"),
+            duration
         );
         rt.block_on(api::put_api_future(
             &self.api_key,
