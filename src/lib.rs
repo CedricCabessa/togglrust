@@ -31,6 +31,7 @@ pub struct Task {
     pub name: String,
     pub project: String,
     pub start: DateTime<Utc>,
+    stop: Option<DateTime<Utc>>,
 }
 
 pub struct Toggl {
@@ -74,6 +75,7 @@ impl Toggl {
                 id: task.id,
                 name: task.description.clone(),
                 start: task.start,
+                stop: task.stop,
                 project: self.project_name(task),
             };
             Ok(Some(t))
@@ -102,6 +104,7 @@ impl Toggl {
                         id: task.id,
                         name: task.description.clone(),
                         start: task.start,
+                        stop: task.stop,
                         project,
                     };
                     num += 1;
@@ -122,8 +125,10 @@ impl Toggl {
 
         let toggltask = self.toggl_tasks.as_ref().and_then(|tasks| tasks.get(0));
         if let Some(task) = toggltask {
-            let duration = Utc::now().timestamp() - task.start.timestamp();
-            self.stop_task_by_id(task.id, duration)?;
+            if task.stop.is_none() {
+                let duration = Utc::now().timestamp() - task.start.timestamp();
+                self.stop_task_by_id(task.id, duration)?;
+            }
         }
         Ok(())
     }
@@ -161,8 +166,10 @@ impl Toggl {
         let current = tasks.get(0);
         let task = tasks.get(idx);
         if let Some(task) = current {
-            let duration = Utc::now().timestamp() - task.start.timestamp();
-            self.stop_task_by_id(task.id, duration)?;
+            if task.stop.is_none() {
+                let duration = Utc::now().timestamp() - task.start.timestamp();
+                self.stop_task_by_id(task.id, duration)?;
+            }
         }
         if let Some(task) = task {
             self.create_task(&task.name, &task.project)?;
